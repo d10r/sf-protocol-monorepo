@@ -22,6 +22,9 @@ import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import { AgreementLibrary } from "./AgreementLibrary.sol";
 import { SafeGasLibrary } from "../libs/SafeGasLibrary.sol";
 
+import { IConstantFlowAgreementV1ReceiveHook } from "../interfaces/agreements/IConstantFlowAgreementV1ReceiveHook.sol";
+import { IERC1820Registry } from "@openzeppelin/contracts/utils/introspection/IERC1820Registry.sol";
+
 /**
  * @title ConstantFlowAgreementV1 contract
  * @author Superfluid
@@ -409,6 +412,18 @@ contract ConstantFlowAgreementV1 is
     /**************************************************************************
      * Internal Helper Functions
      *************************************************************************/
+
+    function getReceiverHookHandler(address account) internal view returns(address handler) {
+        IERC1820Registry reg = IERC1820Registry(0x1820a4B7618BdE71Dce8cdc73aAB6C95905faD24);
+        handler = reg.getInterfaceImplementer(
+            account, keccak256("IConstantFlowAgreementV1ReceiveHook"));
+        // no delegated handler set, check if the flow receiver account itself wants to handle
+        if (handler == address(0) && account.code.length > 0) {
+            // 0x896ef7df is the ERC165 interface hash of IConstantFlowAgreementV1ReceiveHook
+            handler = reg.getInterfaceImplementer(account, bytes32(bytes4(0x896ef7df)));
+        }
+        // returns null if both queries returned the zero address
+    }
 
     // Stack variables for _createOrUpdateFlow function, to avoid stack too deep issue
     // solhint-disable-next-line contract-name-camelcase
